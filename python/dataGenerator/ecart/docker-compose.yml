@@ -9,6 +9,6 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/home/prasoon/Desktop/startupv1/docker-postgres-volume
+      - pgdata:./docker-postgres-volume
 volumes:
   pgdata:

@@ -9,9 +9,9 @@ speed = 150
 conn = psycopg2.connect(
     database="pinnacledb",
     user="postgres",
-    host="ecart-db-1",
+    host="localhost",
     port="5432",
-    password="9473"
+    password="postgres"
 )
 fake = Faker()
 
