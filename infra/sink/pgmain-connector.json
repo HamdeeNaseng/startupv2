@@ -1,0 +1,23 @@
+{
+    "name": "pgmain-connector",
+    "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5433",
+    "database.user": "postgres",
+    "database.password": "9473",
+    "database.dbname" : "postgres",
+    "database.server.name": "pgmain",
+    "database.whitelist": "inventory",
+    "database.history.kafka.bootstrap.servers": "kafka:9092",
+    "database.history.kafka.topic": "schema-changes",
+    "topic.prefix": "dummy",
+    "auto.create": "true",
+    "plugins": "pgoutput",
+    "transforms": "removePrefix",
+    "transforms.removePrefix.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.removePrefix.regex": "dummy\\.(.*)",
+    "transforms.removePrefix.replacement": "$1"
+    }
+}

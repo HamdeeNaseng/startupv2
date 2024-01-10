@@ -1,0 +1,32 @@
+{
+    "name": "jdbc-main-sink-connector",
+    "config": {
+        "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+        "tasks.max": "1",
+        "connection.url": "jdbc:postgresql://host.docker.internal:5434/postgres",
+        "connection.user": "postgres",
+        "connection.password": "9473",
+        "connection.schema": "inventory",
+        "topics": "inventory.customers",
+        "auto.create": "true",
+        "auto.evolve": "true",
+        "update.mode": "update",
+        "type.name": "customer",
+        "insert.mode": "upsert",
+        "delete.enabled": "true",
+        "pk.fields": "id",
+        "pk.mode": "record_key",
+        "dialect": "postgresql",
+        "transforms": "unwrap,key",
+        "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+        "transforms.key.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+        "transforms.key.field": "id",
+        "key.ignore": "false",
+        "errors.deadletterqueue.topic.name": "fail.inventory.customers",
+        "errors.deadletterqueue.context.headers.enable": "true",
+        "errors.tolerance": "all",
+        "errors.log.enable": "true",
+        "errors.log.include.messages": "true",
+        "errors.log.retry.timeout": "-1"
+    }
+}

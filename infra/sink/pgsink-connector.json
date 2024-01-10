@@ -1,0 +1,21 @@
+{
+    "name": "pgsink-connector",
+    "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5434",
+    "database.user": "postgres",
+    "database.password": "9473",
+    "database.dbname" : "postgres",
+    "database.server.name": "pgsink",
+    "database.whitelist": "inventory",
+    "database.history.kafka.bootstrap.servers": "kafka:9092",
+    "database.history.kafka.topic": "schema-changes.inventory",
+    "topic.prefix": "sink",
+    "auto.create": "true",
+    "transforms": "unwrap,createDateConverter,lastModifiedDateConverter,ExtractField",
+    "transforms.ExtractField.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.ExtractField.field": "id"
+    }
+}

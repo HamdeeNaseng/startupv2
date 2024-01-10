@@ -19,7 +19,12 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       CLUSTER_ID: 'p8fFEbKGQ22B6M_Da_vCBw'
+      DEFAULT_REPLICATION_FACTOR: 3 # KAFKA_PARTITION
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    volumes:
+      - ./kafka1/data:/var/lib/kafka/data
+      - ./kafka1/log:/var/log/kafka
+      - ./kafka1/tmp:/tmp
 
   kafka2:
     image: confluentinc/cp-kafka
@@ -41,7 +46,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       CLUSTER_ID: 'p8fFEbKGQ22B6M_Da_vCBw'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-
+      DEFAULT_REPLICATION_FACTOR: 3 # KAFKA_PARTITION
+    volumes:
+      - ./kafka2/data:/var/lib/kafka/data
+      - ./kafka2/log:/var/log/kafka
+      - ./kafka2/tmp:/tmp
   kafka3:
     image: confluentinc/cp-kafka
     container_name: kafka3
@@ -62,7 +71,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       CLUSTER_ID: 'p8fFEbKGQ22B6M_Da_vCBw'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-
+      DEFAULT_REPLICATION_FACTOR: 3 # KAFKA_PARTITION
+    volumes:
+      - ./kafka3/data:/var/lib/kafka/data
+      - ./kafka3/log:/var/log/kafka
+      - ./kafka3/tmp:/tmp
   kafka-ui:
     container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
@@ -82,7 +95,6 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
       DYNAMIC_CONFIG_ENABLED: 'true'
  
-
   schema-registry:
     image: confluentinc/cp-schema-registry
     container_name: schema-registry
@@ -93,39 +105,79 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka1:29092,kafka2:29092,kafka3:29092'
       SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8081'
+      SCHEMA_REGISTRY_DEBUG: 'true'
+      SCHEMA_REGISTRY_SCHEMA_REGISTRY_LOG: 'true'
+
     depends_on:
       - kafka1
       - kafka2
       - kafka3
+      - postgres
+      - postgres-sink
+      
   connect:
     image: quay.io/debezium/connect:latest
     ports:
-     - 8083:8083
+      - 8083:8083
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
-      - kafka1
-      - kafka2
-      - kafka3
+      - schema-registry
+
     volumes:
-      - ./kafka_connect/kafka-connect-jdbc:/kafka/connect/kafka-connect-jdbc
-    
+      - ./kafka_connect/kafka-connect-jdbc:/kafka/connect/kafka-jdbc
+      - ./kafka_connect/confluient-jdbc:/kafka/connect/confluient-jdbc
+      - ./kafka_connect/kafka-connect-avro-converter:/kafka/connect/kafka-avro-converter
     environment:
-     - BOOTSTRAP_SERVERS=kafka1:29092,kafka2:29092,kafka3:29092
-     - GROUP_ID=1
-     - CONFIG_STORAGE_TOPIC=my_connect_configs
-     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-     - STATUS_STORAGE_TOPIC=my_connect_statuses
+      - BOOTSTRAP_SERVERS=kafka1:29092,kafka2:29092,kafka3:29092
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=my_connect_configs
+      - OFFSET_STORAGE_TOPIC=my_connect_offsets
+      - STATUS_STORAGE_TOPIC=my_connect_statuses
+      - topic.creation.default.partitions=10
+      - CONNECT_BOOTSTRAP_SERVERS=kafka1:29092,kafka2:29092,kafka3:29092
+      - CONNECT_REST_PORT=8083
+      - CONNECT_GROUP_ID=1
+      - CONNECT_CONFIG_STORAGE_TOPIC=connect-configs
+      - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_OFFSET_STORAGE_TOPIC=connect-offsets
+      - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_STATUS_STORAGE_TOPIC=connect-status
+      - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_KEY_CONVERTER=io.confluent.connect.avro.AvroConverter
+      - CONNECT_VALUE_CONVERTER=io.confluent.connect.avro.AvroConverter
+      - CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - CONNECT_INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - CONNECT_INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - CONNECT_PLUGIN_PATH=/kafka/connect,/usr/share/java,/kafka/libs
+
   postgres:
     image: quay.io/debezium/example-postgres:latest
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=9473
-      - POSTGRES_DB=postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 9473
+      POSTGRES_DB: postgres
+      POSTGRES_ROOT_PASSWORD: postgres
     ports:
       - "5433:5432"
     volumes:
-      - ./pgdata:/home/prasoon/Desktop/startupv1/docker-postgres-volume
-      - ./logical.conf:/var/lib/postgresql/data/postgresql.conf
-  
+      - ./data:/var/lib/postgresql/data
+
+  postgres-sink:
+    image: quay.io/debezium/example-postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 9473
+      POSTGRES_DB: postgres
+      POSTGRES_ROOT_PASSWORD: postgres
+      POSTGRES_HOST: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./data-sink:/var/lib/postgresql/data
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
     ports:
